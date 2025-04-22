@@ -1,0 +1,50 @@
+name: Build and Release DEB
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set version
+        id: vars
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Create DEB structure
+        run: |
+          mkdir -p cleaner-${VERSION}/DEBIAN
+          mkdir -p cleaner-${VERSION}/usr/local/bin
+          cp cleaner.sh cleaner-${VERSION}/usr/local/bin/cleaner
+          chmod +x cleaner-${VERSION}/usr/local/bin/cleaner
+
+          cat <<EOF > cleaner-${VERSION}/DEBIAN/control
+          Package: cleaner
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: all
+          Maintainer: Mohammad AbuDayeh <e+Ubuntu@Hotmail.com>
+          Description: Cleaner - A simple system cleanup tool for Ubuntu.
+          EOF
+
+      - name: Build .deb package
+        run: |
+          dpkg-deb --build cleaner-${VERSION}
+          mv cleaner-${VERSION}.deb cleaner_${VERSION}.deb
+          cp cleaner_${VERSION}.deb cleaner.deb
+
+      - name: Upload .deb to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            cleaner_${{ env.VERSION }}.deb
+            cleaner.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
